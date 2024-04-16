@@ -7,6 +7,7 @@ class AirConditioner:
         self.capacity = capacity
         self.x = x
         self.y = y
+
     def __repr__(self):
         return f"{self.type} (Cost: {self.cost}, Capacity: {self.capacity}, Position: ({self.x},{self.y}))"
 
