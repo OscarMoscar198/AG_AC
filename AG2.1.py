@@ -19,8 +19,8 @@ class RoomACOptimizer:
             AirConditioner('Avanzado', 24000, 13500)
         ]
         self.population = []
-        self.population_size = 50
-        self.generations = 100
+        self.population_size = 100
+        self.generations = 5000
         self.mutation_rate = 0.1
         self.crossover_rate = 0.7
         self.total_btu_needed = self.width * self.length * 600
@@ -34,35 +34,34 @@ class RoomACOptimizer:
                 position = [random.randint(0, self.width-1), random.randint(0, self.length-1)]
                 individual.append([ac, position])
                 total_cost += ac.cost
-            else:
+            if len(individual) >= self.min_ac:
                 break
         return individual
 
     def initialize_population(self):
         for _ in range(self.population_size):
-            self.population.append(self.generate_individual())
+            individual = self.generate_individual()
+            self.population.append(individual)
 
     def fitness(self, individual):
         total_btu = sum(ac.btu for ac, pos in individual)
         total_cost = sum(ac.cost for ac, pos in individual)
-        if total_btu >= self.total_btu_needed and total_cost <= self.budget and len(individual) >= self.min_ac:
-            return total_btu - abs(self.total_btu_needed - total_btu) + (self.budget - total_cost)
-        return 0
+        btu_score = max(0, (total_btu - self.total_btu_needed) / self.total_btu_needed)
+        cost_efficiency = max(0, (self.budget - total_cost) / self.budget)
+        fitness = btu_score + cost_efficiency
+        return fitness * 100 if total_btu >= self.total_btu_needed and len(individual) >= self.min_ac else 0
 
     def select_parents(self):
-        weighted_population = [(self.fitness(ind), ind) for ind in self.population]
-        weights = [fit for fit, _ in weighted_population]
-        total = sum(weights)
-        pick = random.uniform(0, total)
-        current = 0
-        for weight, individual in weighted_population:
-            current += weight
-            if current > pick:
-                return individual
-        return weighted_population[0][1]  # Fallback
+        tournament_size = 5
+        best = None
+        for i in range(tournament_size):
+            ind = random.choice(self.population)
+            if (best is None) or (self.fitness(ind) > self.fitness(best)):
+                best = ind
+        return best
 
     def crossover(self, parent1, parent2):
-        if random.random() < self.crossover_rate:
+        if random.random() < self.crossover_rate and len(parent1) > 1 and len(parent2) > 1:
             point = random.randint(1, min(len(parent1), len(parent2)) - 1)
             child1 = parent1[:point] + parent2[point:]
             child2 = parent2[:point] + parent1[point:]
@@ -70,11 +69,11 @@ class RoomACOptimizer:
         return parent1, parent2
 
     def mutate(self, individual):
-        if random.random() < self.mutation_rate:
+        if random.random() < self.mutation_rate and len(individual) > 0:
             idx = random.randint(0, len(individual) - 1)
-            new_ac = self.generate_individual()[0]
-            individual[idx][0] = new_ac[0]  # Actualiza el tipo de AC
-            individual[idx][1] = new_ac[1]  # Actualiza la posición
+            new_ac_type = random.choice(self.ac_types)
+            new_position = [random.randint(0, self.width-1), random.randint(0, self.length-1)]
+            individual[idx] = [new_ac_type, new_position]
         return individual
 
     def evolve(self):
